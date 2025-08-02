@@ -10,6 +10,14 @@
 
 
 
+## Final Project Live Version
+https://github.com/user-attachments/assets/e25d2b61-37f1-4e82-a08c-c1a12119975d
+
+
+
+
+
+
 ## System Architechture
 <img width="1311" height="619" alt="image" src="https://github.com/user-attachments/assets/aa370fd2-f98c-41f5-a91f-843fb3875324" />
 
@@ -59,6 +67,7 @@ Please note that the Safecast dataset needs to be downloaded, decompresed and ad
 ├── frontend/                   # Web-based GUI for visualizing data including
 
 └── .gitignore                  # Files and directories to ignore in Git :) All cloud sshs and env variables will live here.
+
 
 
 
