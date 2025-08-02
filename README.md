@@ -10,6 +10,9 @@
 
 
 
+##System Architechture
+<img width="1667" height="874" alt="image" src="https://github.com/user-attachments/assets/40ec3271-1852-4990-be71-c4a5baaf01f5" />
+
 
 ## Institute for Data Engineering
 **Module**: Big Data Lab Exercises  
@@ -55,3 +58,4 @@ Please note that the Safecast dataset needs to be downloaded, decompresed and ad
 ├── frontend/                   # Web-based GUI for visualizing data including
 
 └── .gitignore                  # Files and directories to ignore in Git :) All cloud sshs and env variables will live here.
+
