@@ -1,0 +1,19 @@
+{
+  "name": "radiation-dashboard",
+  "version": "1.0.0",
+  "main": "kafkaApiService.js",
+"scripts": {
+  "start": "serve -l 3000 -s . & nodemon --watch kafkaApiService.js kafkaApiService.js",
+  "api": "node kafkaApiService.js",
+  "docker-start": "concurrently \"serve -l 3000 -s .\" \"node kafkaApiService.js\""
+}
+,
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "serve": "^14.2.0"
+  }
+}

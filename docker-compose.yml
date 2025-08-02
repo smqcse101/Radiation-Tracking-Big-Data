@@ -1,0 +1,314 @@
+version: '3.8'
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s  # Reduced from 30s
+      timeout: 5s    # Reduced from 10s
+      retries: 3     # Reduced from 5
+      start_period: 20s  # Reduced from 40s
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka-topics-setup:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka to be ready...' &&
+        sleep 10 &&
+        kafka-topics --create --if-not-exists --topic radiation --bootstrap-server kafka:9092 --partitions 2 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic radiation-averaged --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic radiation-alerts --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic safecast.cleaned.enriched --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        echo 'Topics created successfully' &&
+        kafka-topics --list --bootstrap-server kafka:9092
+      "
+    networks:
+      - kafka-net
+
+  kafka-producer:
+    #build: ./kafka-producer
+    image: syedmustafaquadri/radiation-kafka-producer
+    restart: unless-stopped 
+    volumes:
+      - ./data/testing:/app/testing
+    command: [
+      "--input-file", "/app/testing/measurements-out.csv",
+      "--chunk-size", "1000",
+      "--interval", "1.0"
+    ]
+    depends_on:
+      - kafka-topics-setup
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=radiation
+      - CONFLUENT_KAFKA_VERSION=2.3.0
+      - KAFKA_PYTHON=2.0.2
+    networks:
+      - kafka-net
+
+  # control-center:
+  #   image: confluentinc/cp-enterprise-control-center:7.5.0
+  #   depends_on:
+  #     - kafka
+  #   ports:
+  #     - "9021:9021"
+  #   environment:
+  #     CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka:9092
+  #     CONTROL_CENTER_ZOOKEEPER_CONNECT: zookeeper:2181
+  #     CONTROL_CENTER_REPLICATION_FACTOR: 1
+  #     CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+  #     CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+  #   networks:
+  #     - kafka-net
+
+  jobmanager:
+    #build:
+      #context: ./flink-processor
+    image: syedmustafaquadri/radiation-flink
+    container_name: jobmanager
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./flink-processor/average_cpm_job.py:/opt/flink/processor/average_cpm_job.py
+    command: >
+      bash -c "
+        echo 'Starting JobManager...' &&
+        /docker-entrypoint.sh jobmanager
+      "
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - PYTHON=/usr/bin/python3
+      - PYTHONPATH=/opt/flink/opt/python
+      - KAFKA_VERSION=3.1.0
+      - SCALA_VERSION=2.12
+      - KAFKA_PYTHON=2.0.2
+      - CONFLUENT_KAFKA_VERSION=2.3.0
+      - PYFLINK_VERSION=1.17.2
+      - FLINK_VERSION=1.17.2
+      - NLTK_DATA=/opt/flink/nltk_data
+    restart: unless-stopped
+    depends_on:
+      kafka-topics-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - kafka-net
+
+  taskmanager:
+    #build:
+      #context: ./flink-processor
+    image: syedmustafaquadri/radiation-flink
+    container_name: taskmanager
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for JobManager to be ready...' &&
+        sleep 10 &&
+        /docker-entrypoint.sh taskmanager
+      "
+    environment:
+      - TASK_MANAGER_NUMBER_OF_TASK_SLOTS=4
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - PYTHON=/usr/bin/python3
+      - PYTHONPATH=/opt/flink/opt/python
+      - KAFKA_VERSION=3.1.0
+      - SCALA_VERSION=2.12
+      - KAFKA_PYTHON=2.0.2
+      - CONFLUENT_KAFKA_VERSION=2.3.0
+      - PYFLINK_VERSION=1.17.2
+      - FLINK_VERSION=1.17.2
+      - NLTK_DATA=/opt/flink/nltk_data
+    restart: unless-stopped
+    networks:
+      - kafka-net
+
+  job-submitter:
+    #build:
+      #context: ./flink-processor
+    image: syedmustafaquadri/radiation-flink
+    depends_on:
+      #kafka:
+        #condition: service_healthy
+      jobmanager:
+        condition: service_healthy
+      taskmanager:
+        condition: service_started
+    command: >
+      bash -c "
+        echo 'Waiting for TaskManager to be ready...' &&
+        until curl -s http://jobmanager:8081/overview; do
+        echo 'Waiting for JobManager REST API...';
+        sleep 5;
+      done &&
+        flink run -m jobmanager:8081 -py /opt/flink/processor/average_cpm_job.py
+      "
+    volumes:
+      - ./flink-processor/average_cpm_job.py:/opt/flink/processor/average_cpm_job.py
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - PYTHON=/usr/bin/python3
+      - PYTHONPATH=/opt/flink/opt/python
+    networks:
+      - kafka-net
+
+  job-submitter-enrichment:
+    #build:
+      #context: ./flink-processor
+    image: syedmustafaquadri/radiation-flink
+    depends_on:
+      #kafka:
+        #condition: service_healthy
+      jobmanager:
+        condition: service_healthy
+      taskmanager:
+        condition: service_started
+    command: >
+      bash -c "
+        echo 'Waiting for TaskManager to be ready...' &&
+        until curl -s http://jobmanager:8081/overview; do
+        echo 'Waiting for JobManager REST API...';
+        sleep 5;
+      done &&
+        flink run -m jobmanager:8081 -py /opt/flink/processor/JobEnrichValidate.py
+      "
+    volumes:
+      - ./flink-processor/JobEnrichValidate.py:/opt/flink/processor/JobEnrichValidate.py
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - PYTHON=/usr/bin/python3
+      - PYTHONPATH=/opt/flink/opt/python
+    networks:
+      - kafka-net    
+
+  # # [Abrar] NEW:    
+  # job-submitter-aggregate-city:
+  #   build: ./flink-processor
+  #   image: flink-pyflink:1.17.2
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #     jobmanager:
+  #       condition: service_healthy
+  #     taskmanager:
+  #       condition: service_started      
+  #   command: >
+  #     bash -c "
+  #       echo 'Waiting for JobManager to be ready...' &&
+  #       sleep 3600
+  #     " 
+  #   volumes:
+  #     - ./flink-processor/JobAggregateCity.py:/opt/flink/processor/JobAggregateCity.py
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  #     - PYTHON=/usr/bin/python3
+  #     - PYTHONPATH=/opt/flink/opt/python
+  #   networks:
+  #     - kafka-net
+
+  # job-submitter-alerts:
+  #   build: ./flink-processor
+  #   image: flink-pyflink:1.17.2
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #     jobmanager:
+  #       condition: service_healthy
+  #     taskmanager:
+  #       condition: service_started
+  #   command: >
+  #     bash -c "
+  #       echo 'Waiting for TaskManager…' &&
+  #       until curl -s http://jobmanager:8081/overview; do
+  #       echo 'Waiting for JobManager REST API...';
+  #       sleep 5;
+  #     done &&
+  #       flink run -m jobmanager:8081 -py /opt/flink/processor/alert_job.py --cpm-threshold 20 --usv-threshold 0.15
+  #     "
+  #   volumes:
+  #     - ./flink-processor/alert_job.py:/opt/flink/processor/alert_job.py
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  #     - PYTHON=/usr/bin/python3
+  #     - PYTHONPATH=/opt/flink/opt/python
+  #   networks:
+  #     - kafka-net
+
+  dasboard:
+    #build: ./visualization
+    container_name: radiation-dashboard-frontend
+    image: syedmustafaquadri/radiation-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./visualization:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - kafka-net
+
+  backend:
+   #build: ./backend-api
+    container_name: radiation-dashboard-backend
+    image: syedmustafaquadri/radiation-backend-api
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend-api:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      #kafka:
+        #condition: service_healthy
+      kafka-topics-setup:
+        condition: service_completed_successfully
+      jobmanager:
+        condition: service_healthy
+      taskmanager:
+        condition: service_started
+      job-submitter:
+        condition: service_started
+    networks:
+      - kafka-net
+ 
+
+
+
+networks:
+  kafka-net:
+    driver: bridge

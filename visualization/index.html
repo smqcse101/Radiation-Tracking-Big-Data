@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Radiation Monitoring Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header with title and alerts button -->
+        <header class="dashboard-header">
+            <h1><i class="fas fa-radiation"></i> Radiation Monitoring System</h1>
+            <button id="alerts-button" class="alerts-btn">
+                <i class="fas fa-bell"></i>
+                <span id="alert-count" class="alert-badge">0</span>
+            </button>
+        </header>
+
+        <!-- Main content area -->
+        <div class="dashboard-content">
+            <!-- Left sidebar with metrics and controls -->
+            <aside class="dashboard-sidebar">
+                <div class="metrics-card">
+                    <h2>Global Metrics</h2>
+                    <div class="metric-item">
+                        <span class="metric-label">Average CPM:</span>
+                        <span id="avg-cpm-value" class="metric-value">Waiting...</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Total Records:</span>
+                        <span id="measurement-count" class="metric-value">Waiting...</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Min CPM:</span>
+                        <span id="min-cpm-value" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Max CPM:</span>
+                        <span id="max-cpm-value" class="metric-value">-</span>
+                    </div>
+                </div>
+
+                <div class="controls-card">
+                    <h2>Controls</h2>
+                    <div class="form-group">
+                        <label for="threshold-input">Alert Threshold (CPM):</label>
+                        <input type="number" id="threshold-input"  value="70" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="country-select">Country Focus:</label>
+                        <select id="country-select" class="form-control">
+                            <option value="">World View</option>
+                            <!-- Countries will be populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+                <!-- Time Animation Controls 
+                Time Animation Controls
+                <div class="time-controls">
+                    <h2>Time Controls</h2>
+                    <input type="range" id="time-slider" min="0" max="100" value="0" step="1">
+                    <span id="current-time-label">--:--</span>
+                    <button id="play-pause-btn"><i class="fas fa-play"></i></button>
+                </div>
+                -->
+
+                <div id="legend" class="legend-card">
+                    <h2>Radiation Levels (CPM)</h2>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #1a9850"></span>0–20 (Normal)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #91cf60"></span>20–50 (Elevated)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #d9ef8b"></span>50–100 (Moderate)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #fee08b"></span>100–300 (High)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #fdae61"></span>300–600 (Very High)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #f46d43"></span>600–1000 (Dangerous)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: #d73027"></span>1000+ (Extreme)</div>
+                </div>
+
+                <div id="slider-container" class="slider-card">
+                    <h2>Filter by Radiation Level</h2>
+                    <div id="slider-value-display" class="slider-value">Showing all values (0-1500 CPM)</div>
+                    <div id="slider"></div>
+                </div>
+            </aside>
+
+            <!-- Main map area -->
+            <main class="map-container">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <button id="heatmap-toggle" class="map-btn">
+                        <i class="fas fa-fire"></i> Toggle Heatmap
+                    </button>
+                </div>
+            </main>
+
+            <!-- Right sidebar for alerts (hidden by default) -->
+            <aside id="alerts-sidebar" class="alerts-sidebar">
+                <div class="alerts-header">
+                    <h2>Radiation Alerts</h2>
+                    <button id="close-alerts" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="alerts-list" class="alerts-list">
+                    <!-- Alerts will be populated here -->
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="map.js"></script>
+</body>
+</html>
