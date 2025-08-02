@@ -1,6 +1,10 @@
 # BD25_Project_M7_C
 # Big Data Lab - Radiation Tracking Project
 
+## Final Project Live Version
+https://github.com/user-attachments/assets/e25d2b61-37f1-4e82-a08c-c1a12119975d
+
+
 ## 👥 Team Members
 
 | Name                        | Matriculation Number | User Name |Email                        | Role                     |
@@ -10,8 +14,6 @@
 
 
 
-## Final Project Live Version
-https://github.com/user-attachments/assets/e25d2b61-37f1-4e82-a08c-c1a12119975d
 
 
 
@@ -67,6 +69,7 @@ Please note that the Safecast dataset needs to be downloaded, decompresed and ad
 ├── frontend/                   # Web-based GUI for visualizing data including
 
 └── .gitignore                  # Files and directories to ignore in Git :) All cloud sshs and env variables will live here.
+
 
 
 
