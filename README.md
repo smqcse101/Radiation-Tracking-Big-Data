@@ -6,8 +6,6 @@
 | Name                        | Matriculation Number | User Name |Email                        | Role                     |
 |-----------------------------|----------------------|-----------|------------------|--------------------------|
 | **Mahboob Abrar Ali Syed**   | 637453               | cdw0910         |[mahboob.syed@tuhh.de](mailto:mahboob.syed@tuhh.de) | Team Coordinator         |
-| **Darren Noronha**           | 637482               | cei9468           |[darren.noronha@tuhh.de](mailto:darren.noronha@tuhh.de) |                          |
-| **Lincia Dsouza**            | 640978               | cws8093            |[lincia.dsouza@tuhh.de](mailto:lincia.dsouza@tuhh.de)  |                          |
 | **Syed Mustafa Quadri**      | 638012               | cot7047            |[syed.quadri@tuhh.de](mailto:syed.quadri@tuhh.de)       |                          |
 
 
@@ -55,4 +53,5 @@ Please note that the Safecast dataset needs to be downloaded, decompresed and ad
 ├── config/                     # Configuration files for system setup mostly not needed 
 ├── data/                       # Raw and processed radiation data. Here we can add our measurement.csv
 ├── frontend/                   # Web-based GUI for visualizing data including
+
 └── .gitignore                  # Files and directories to ignore in Git :) All cloud sshs and env variables will live here.
